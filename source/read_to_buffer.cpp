@@ -4,14 +4,13 @@
 #include <assert.h>
 #include <string.h>
 #include <stdbool.h>
-#include <sys\stat.h>
+#include <sys/stat.h>
 #include <ctype.h>
 
 #include "read_to_buffer.h"
 #include "hash_table.h"
 
-int get_size_of_file (const char *name_of_file);
-int process_buffer_to_table(HashTable *table, char *buffer);
+#define MAX_RESULTS 1000
 
 int get_size_of_file ( const char *name_of_file)
 {
@@ -27,25 +26,25 @@ int get_size_of_file ( const char *name_of_file)
     return buffer.st_size;
 }
 
-int load_book_to_hash(HashTable *table, const char *filename)
+char * read_from_file (const char *filename)
 {
-    assert(table);
     assert(filename);
 
     FILE *pfile = fopen (filename, "rb");
     if (pfile == NULL)
     {
         printf("Not opened\n");
-        return HASH_FILE_NOT_OPENED;
+        return NULL;
     }
 
     size_t size = get_size_of_file(filename);
+
 
     char *buffer  = (char*) calloc (size + 1, sizeof(char));
     if (!buffer)
     {
         printf ("Allocation error");
-        return HASH_ALLOCATION_MEMORY_ERROR;
+        return NULL;
     }
 
     size_t amount_read = fread(buffer, 1, size, pfile);
@@ -54,56 +53,85 @@ int load_book_to_hash(HashTable *table, const char *filename)
         free(buffer);
         fclose(pfile);
         fprintf(stderr, "Error: Failed to read file\n");
-        return HASH_READ_ERROR;
+        return NULL;
     }
-
-    if (process_buffer_to_table(table, buffer) != HASH_SUCCESS)
-        return HASH_LOAD_ERROR;
-
     fclose(pfile);
-    free(buffer);
+    return buffer;
 
-    return HASH_SUCCESS;
 }
 
-int process_buffer_to_table(HashTable *table, char *buffer)
+int *process_words_from_buffer(char *buffer, HashTable *table, HashAction action)
 {
     assert(table);
     assert(buffer);
 
     char *current = buffer;
+    int *result_massive = (int *)calloc(MAX_RESULTS, sizeof(int));
+    int index = 0;
+
     while (*current)
     {
 
-        while (*current && (ispunct(*current) || isspace(*current)))
+        char word[32] = {0};
+        strncpy(word, current, 32);
+
+
+        if (word[0] != '\0')
         {
-            current++;
+            if (action == HASH_ACTION_ADD)
+            {
+                if (add_word(table, word) < HASH_SUCCESS)
+                {
+                    free(result_massive);
+                    return NULL;
+                }
+            }
+            else
+            {
+                result_massive[index++] = search_word_table(table, word);
+            }
         }
-
-        if (!*current) break;
-
-
-        char *word_start = current;
-
-
-        while (*current && !ispunct(*current) && !isspace(*current))
-        {
-            *current = (char) tolower(*current);
-            current++;
-        }
-
-
-        if (current > word_start)
-        {
-
-            char temp = *current;
-            *current = '\0';
-
-            if (add_word(table, word_start) != HASH_SUCCESS)
-                return HASH_ADD_WORD_ERROR;
-
-            *current = temp;
-        }
+        current += 32;
     }
+
+    if (action == HASH_ACTION_ADD)
+    {
+        free(result_massive);
+        return NULL;
+    }
+
+    return result_massive;
+}
+
+
+int load_book_to_hash(HashTable *table, const char *filename)
+{
+    assert(table);
+    assert(filename);
+
+
+    char *buffer  = read_from_file(filename);
+
+    process_words_from_buffer(buffer, table, HASH_ACTION_ADD);
+
+
+    free(buffer);
+
     return HASH_SUCCESS;
 }
+
+
+int *search_words (HashTable *table, const char *file)
+{
+    assert(table);
+    assert(file);
+
+    char *buffer = read_from_file(file);
+
+    int *result = process_words_from_buffer(buffer, table, HASH_ACTION_SEARCH);
+    if (!result)
+        assert(0 && "aaa");
+    return result;
+
+}
+

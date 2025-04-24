@@ -4,7 +4,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stdbool.h>
-#include <sys\stat.h>
+#include <sys/stat.h>
 #include <ctype.h>
 
 #include "hash_table.h"
@@ -17,12 +17,18 @@ int main()
     if (!table)
         assert(0 && "ALLOCATION MEMORY ERROR");
 
-    if (load_book_to_hash(table, "Harry_Potter_1.txt") != HASH_SUCCESS)
+    if (load_book_to_hash(table, "Advanced_Harry.txt") != HASH_SUCCESS)
         assert(0 && "LOAD TABLE ERROR");
-    printf("%d", search_word_table(table, "ron"));
 
+
+    int *result =  search_words(table, "Advanced_word.txt");
+    //printf ("here\n");
+    //for (int i = 0; i < 8; i++)
+    //    printf ("%d \n", result[i]);
+    //printf ("here\n");
     if (dtor_table(table) != HASH_SUCCESS)
-        assert(0 && "DTOR TABLE ERROR");
 
+        assert(0 && "DTOR TABLE ERROR");
+    free(result);
     return 0;
 }

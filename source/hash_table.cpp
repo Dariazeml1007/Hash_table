@@ -4,15 +4,16 @@
 #include <assert.h>
 #include <string.h>
 #include <stdbool.h>
-#include <sys\stat.h>
+#include <sys/stat.h> // wsl
 #include <ctype.h>
+#include <nmmintrin.h>
+#include <stdint.h>
 
 #include "hash_table.h"
 #include "read_to_buffer.h"
 
-#define TABLE_SIZE 10  // Размер хеш-таблицы
-
-unsigned long hash(const char *key);
+#define TABLE_SIZE  5147
+uint32_t hash_intrinsic(const char* word) ;
 
 HashTable *ctor_table ()
 {
@@ -22,34 +23,30 @@ HashTable *ctor_table ()
         printf ("Memory allocation error");
         return NULL;
     }
-    table->buckets = (HashEntry**) calloc(TABLE_SIZE, sizeof(HashEntry*));  // Инициализация нулями
+    table->buckets = (HashEntry**) calloc(TABLE_SIZE, sizeof(HashEntry*));
     table->size = TABLE_SIZE;
     return table;
 }
 
-
-unsigned long hash(const char *key)
+// First optimization
+uint32_t hash_intrinsic(const char* word)
 {
-    assert(key);
-
-    unsigned long hash = 5381;
-
-    for (size_t i = 0; key[i] != '\0'; i++)
-
-         hash = ((hash << 5) + hash) + (size_t) tolower(key[i]); // hash * 33 + c
-
-
-    return hash;
+    uint64_t hash = 0;
+    hash = _mm_crc32_u64(hash, *((const uint64_t*)(word)));     //process only 4 byte
+    hash = _mm_crc32_u64(hash, *((const uint64_t*)(word + 8)));
+    hash = _mm_crc32_u64(hash, *((const uint64_t*)(word + 16)));
+    hash = _mm_crc32_u64(hash, *((const uint64_t*)(word + 24)));
+    return (uint32_t)hash;
 }
 
-int add_word(HashTable *table, const char *word)
+
+int add_word(HashTable *table, char *word)
 {
     assert(table);
     assert(word);
 
-    unsigned long index = hash(word) % table->size;
+    unsigned long index = hash_intrinsic(word) % table->size;
     HashEntry *entry = table->buckets[index];
-
 
     while (entry)
     {
@@ -65,8 +62,10 @@ int add_word(HashTable *table, const char *word)
     if (!new_entry)
         return HASH_ALLOCATION_MEMORY_ERROR;
 
-    new_entry->word = strdup(word);
+    strncpy(new_entry->word, word, 32);
+    new_entry->word[32] = '\0';
     new_entry->count = 1;
+
     new_entry->next = table->buckets[index];
     table->buckets[index] = new_entry;
 
@@ -81,9 +80,8 @@ int dtor_table(HashTable *table)
         HashEntry *entry = table->buckets[i];
         while (entry)
         {
-            HashEntry *next = entry->next; // Сохраняем указатель на следующий
-            free(entry->word);             // Ключ (strdup)
-            free(entry);                  // Сам элемент
+            HashEntry *next = entry->next;
+            free(entry);
             entry = next;
         }
     }
@@ -100,19 +98,19 @@ int search_word_table (HashTable *table, const char *word)
     assert(table);
     assert(word);
 
-    unsigned long index = hash(word) % table->size;
+    unsigned long index = hash_intrinsic(word) % table->size;
     HashEntry *entry = table->buckets[index];
 
     while (entry)
     {
-        if (strcmp(entry->word , word) == 0)
+        if (strncmp(entry->word , word, 32) == 0)
         {
+
             return entry->count;
         }
         entry = entry->next;
     }
 
     return HASH_NOT_FOUND_WORD;
-
 
 }

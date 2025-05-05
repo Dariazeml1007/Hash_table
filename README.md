@@ -177,3 +177,7 @@ void strncpy_avx2(char *dest, const char *src)
 
 
 ![Пятый замер](callgrind/time_5(memset).png)
+
+Оставим так, чтобы она не мозолила глаза
+
+

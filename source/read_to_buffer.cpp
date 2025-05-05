@@ -6,13 +6,18 @@
 #include <stdbool.h>
 #include <sys/stat.h>
 #include <ctype.h>
+#include <time.h>
+#include <x86intrin.h>
+#ifdef USE_CALLGRIND
+#include <valgrind/callgrind.h>
+#endif
 
 #include "read_to_buffer.h"
 #include "hash_table.h"
 
-#define MAX_RESULTS 1000
+#define MAX_RESULTS 100000
 
-int get_size_of_file ( const char *name_of_file)
+long get_size_of_file ( const char *name_of_file)
 {
     assert(name_of_file);
     int info_of_file = 0;
@@ -37,10 +42,10 @@ char * read_from_file (const char *filename)
         return NULL;
     }
 
-    size_t size = get_size_of_file(filename);
+    long size = get_size_of_file(filename);
 
 
-    char *buffer  = (char*) calloc (size + 1, sizeof(char));
+    char *buffer  = (char*) malloc ((size + 1) *sizeof(char));
     if (!buffer)
     {
         printf ("Allocation error");
@@ -60,49 +65,6 @@ char * read_from_file (const char *filename)
 
 }
 
-int *process_words_from_buffer(char *buffer, HashTable *table, HashAction action)
-{
-    assert(table);
-    assert(buffer);
-
-    char *current = buffer;
-    int *result_massive = (int *)calloc(MAX_RESULTS, sizeof(int));
-    int index = 0;
-
-    while (*current)
-    {
-
-        char word[32] = {0};
-        strncpy(word, current, 32);
-
-
-        if (word[0] != '\0')
-        {
-            if (action == HASH_ACTION_ADD)
-            {
-                if (add_word(table, word) < HASH_SUCCESS)
-                {
-                    free(result_massive);
-                    return NULL;
-                }
-            }
-            else
-            {
-                result_massive[index++] = search_word_table(table, word);
-            }
-        }
-        current += 32;
-    }
-
-    if (action == HASH_ACTION_ADD)
-    {
-        free(result_massive);
-        return NULL;
-    }
-
-    return result_massive;
-}
-
 
 int load_book_to_hash(HashTable *table, const char *filename)
 {
@@ -112,9 +74,26 @@ int load_book_to_hash(HashTable *table, const char *filename)
 
     char *buffer  = read_from_file(filename);
 
-    process_words_from_buffer(buffer, table, HASH_ACTION_ADD);
 
+    char *current = buffer;
+    int index = 0;
 
+    while (*current)
+    {
+
+        alignas(32) char word[32]= {0};
+        strncpy_avx2(word, current);
+        //strncpy(word, current, 32);
+        if (word[0] != '\0')
+        {
+            if (add_word(table, word) < HASH_SUCCESS)
+
+                return HASH_LOAD_ERROR;
+
+        }
+        current += 32;
+
+    }
     free(buffer);
 
     return HASH_SUCCESS;
@@ -128,10 +107,33 @@ int *search_words (HashTable *table, const char *file)
 
     char *buffer = read_from_file(file);
 
-    int *result = process_words_from_buffer(buffer, table, HASH_ACTION_SEARCH);
-    if (!result)
-        assert(0 && "aaa");
-    return result;
+    char *current = buffer;
+    int *result_massive = (int *)calloc(MAX_RESULTS, sizeof(int));
+    int index = 0;
+
+    while (*current)
+    {
+        alignas(32) char word[32]= {0};
+        strncpy_avx2(word, current);
+
+        if (word[0] != '\0')
+
+            result_massive[index++] = search_word_table(table, word);
+
+        current += 32;
+    }
+
+
+    free(buffer);
+
+    if (!result_massive) {
+        assert(0 && "process_words_from_buffer failed");
+        return NULL;
+    }
+
+
+
+    return result_massive;
 
 }
 

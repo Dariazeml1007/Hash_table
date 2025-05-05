@@ -38,5 +38,5 @@ HashTable *ctor_table ();
 int dtor_table(HashTable *table);
 int add_word(HashTable *table, char *word);
 int search_word_table (HashTable *table, const char *word);
-
+void strncpy_avx2(char* dest, const char* src) ;
 #endif

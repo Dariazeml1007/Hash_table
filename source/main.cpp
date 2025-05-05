@@ -20,8 +20,9 @@ int main()
     if (load_book_to_hash(table, "Advanced_Harry.txt") != HASH_SUCCESS)
         assert(0 && "LOAD TABLE ERROR");
 
-
-    int *result =  search_words(table, "Advanced_word.txt");
+    int *result = NULL;
+    for (int i = 0; i < 100; i++)
+        result =  search_words(table, "Advanced_Harry.txt");
     //printf ("here\n");
     //for (int i = 0; i < 8; i++)
     //    printf ("%d \n", result[i]);

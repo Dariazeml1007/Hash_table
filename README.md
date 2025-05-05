@@ -164,7 +164,7 @@ void strncpy_avx2(char *dest, const char *src)
 
 ```
 
-![Четвертый замер](callgrind/time_4(strcpy).png)
+![Четвертый замер](callgrind/time_4(strncpy).png)
 
 Итак, проблемная функция memset. Явно мы ее не используем, но используем calloc при выделении памяти для загрузочного буфера из предложенного файла с текстом. Сделаем замену calloc на malloc и посмотрим права ли мы. 
 

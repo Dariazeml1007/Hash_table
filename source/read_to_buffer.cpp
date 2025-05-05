@@ -15,7 +15,7 @@
 #include "read_to_buffer.h"
 #include "hash_table.h"
 
-#define MAX_RESULTS 100000
+const int  max_results = 100000;
 
 long get_size_of_file ( const char *name_of_file)
 {
@@ -45,14 +45,14 @@ char * read_from_file (const char *filename)
     long size = get_size_of_file(filename);
 
 
-    char *buffer  = (char*) malloc ((size + 1) *sizeof(char));
+    char *buffer  = (char*) malloc ((size + 1) * sizeof(char));
     if (!buffer)
     {
         printf ("Allocation error");
         return NULL;
     }
 
-    size_t amount_read = fread(buffer, 1, size, pfile);
+    long amount_read = fread(buffer, 1, size, pfile);
     if (amount_read != size)
     {
         free(buffer);
@@ -76,7 +76,6 @@ int load_book_to_hash(HashTable *table, const char *filename)
 
 
     char *current = buffer;
-    int index = 0;
 
     while (*current)
     {
@@ -108,7 +107,7 @@ int *search_words (HashTable *table, const char *file)
     char *buffer = read_from_file(file);
 
     char *current = buffer;
-    int *result_massive = (int *)calloc(MAX_RESULTS, sizeof(int));
+    int *result_massive = (int *)calloc(max_results, sizeof(int));
     int index = 0;
 
     while (*current)

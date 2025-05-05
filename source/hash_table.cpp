@@ -144,17 +144,22 @@ int dtor_table(HashTable *table)
 }
 
 
-int search_word_table(HashTable* table, const char* word) {
+int search_word_table(HashTable* table, const char* word)
+{
+    assert(table && word);
+
     uint32_t hash = hash_intrinsic(word);
     HashEntry* entry = table->buckets[hash % table->size];
+    const __m256i word_vec = _mm256_loadu_si256((const __m256i*)word);
 
-    const __m256i word_vec = _mm256_loadu_si256((__m256i*)word);
-
-    while (entry) {
+    while (entry)
+    {
         _mm_prefetch(entry->next, _MM_HINT_T0);
 
-        __m256i entry_vec = _mm256_loadu_si256((__m256i*)entry->word);
-        if (_mm256_testc_si256(word_vec, entry_vec)) {
+        __m256i entry_vec = _mm256_loadu_si256((const __m256i*)entry->word);
+        uint32_t mask = (uint32_t)_mm256_movemask_epi8(_mm256_cmpeq_epi8(word_vec, entry_vec));
+        if (mask == 0xFFFFFFFFU)
+        {
             return entry->count;
         }
         entry = entry->next;

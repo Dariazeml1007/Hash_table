@@ -142,6 +142,19 @@ int strcmp_avx2(const char *s1, const char *s2)
 }
 
 ```
+Заодно оптимизируем еще одну функции - strncmp. Это позволит нам уменьшить затраты не только на поиск, но и на загрузку.
 
+```c
+__attribute__((noinline))
+void strncpy_avx2(char *dest, const char *src)
+{
+    const __m256i *src_vec = (const __m256i*)src;
+    __m256i data = _mm256_loadu_si256(src_vec);
+    _mm256_storeu_si256((__m256i*)dest, data);
+
+    dest[WORD_SIZE-1] = '\0';
+}
+
+```
 
 ![Третий замер](callgrind/time_3(strcmp).png)

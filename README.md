@@ -185,6 +185,61 @@ void strncpy_avx2(char *dest, const char *src)
 
 ### Функция search_word_table
 
+
+```c
+
+int search_word_table (HashTable *table, const char *word)
+{
+
+    assert(table);
+    assert(word);
+
+    unsigned long index = hash_intrinsic(word) % table->size;
+    HashEntry *entry = table->buckets[index];
+
+    while (entry)
+    {
+        if (strcmp_avx2(entry->word , word) == 0)
+        {
+
+            return entry->count;
+        }
+
+        if (entry->next)
+            entry = entry->next;
+        else
+            break;
+    }
+
+    return HASH_NOT_FOUND_WORD;
+
+}
+```
+```c
+int search_word_table(HashTable* table, const char* word)
+{
+    assert(table && word);
+
+    uint32_t hash = hash_intrinsic(word);
+    HashEntry* entry = table->buckets[hash % table->size];
+    const __m256i word_vec = _mm256_loadu_si256((const __m256i*)word);
+
+    while (entry)
+    {
+        _mm_prefetch(entry->next, _MM_HINT_T0);
+
+        __m256i entry_vec = _mm256_loadu_si256((const __m256i*)entry->word);
+        uint32_t mask = (uint32_t)_mm256_movemask_epi8(_mm256_cmpeq_epi8(word_vec, entry_vec));
+        if (mask == 0xFFFFFFFFU)
+        {
+            return entry->count;
+        }
+        entry = entry->next;
+    }
+    return HASH_NOT_FOUND_WORD;
+}
+```
+
 Векторизация сравнения:
 
 ```c
@@ -197,3 +252,5 @@ _mm_prefetch(entry->next) // Предзагрузка следующего эл�
 ```
 Отказ от ветвления:
 Замена if-else на битовые операции
+
+![Пятый замер](callgrind/time_6(search_w_t).png)

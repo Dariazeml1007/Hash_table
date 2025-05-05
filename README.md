@@ -121,4 +121,27 @@ uint32_t hash_intrinsic(const char* word)
 
 ### Вторая функция strcmp
 
-![Второй замер](callgrind/time_3(strcmp).png)
+Заменим функций из библиотеки на strcmp_avx2, используя интринсики (здесь нам и пригодилось распределение слов по 32 байта )
+
+```c
+__attribute__((noinline))
+
+int strcmp_avx2(const char *s1, const char *s2)
+{
+    assert(s1);
+    assert(s2);
+
+    const __m256i *ptr1 = (const __m256i*)s1;
+    const __m256i *ptr2 = (const __m256i*)s2;
+
+    __m256i vec1 = _mm256_load_si256(ptr1);
+    __m256i vec2 = _mm256_load_si256(ptr2);
+
+    uint32_t mask = _mm256_movemask_epi8(_mm256_cmpeq_epi8(vec1, vec2));
+    return (mask == 0xFFFFFFFF) ? 0 : 1;
+}
+
+```
+
+
+![Третий замер](callgrind/time_3(strcmp).png)

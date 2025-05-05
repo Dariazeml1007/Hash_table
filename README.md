@@ -5,7 +5,7 @@
 
 Для начала уберем пунктуацию и переведем все буквы в строчные отдельной программой (папка tools prepare_words.cpp), чтобы замерять именно поиск. Воспользуемся valgrind для анализа :
 
-![Первый замер](callgrind/image1.png)
+![Первый замер](callgrind/time_1.png)
 
 Первая функция hash 
 
@@ -39,7 +39,7 @@ uint32_t hash_intrinsic(const char* word)
 }
 ```
 
-![Второй замер](callgrind/image.png)
+![Второй замер](callgrind/time_2.png)
 
 Сразу виден результат 
 

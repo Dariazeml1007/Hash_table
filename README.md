@@ -186,6 +186,7 @@ int strcmp_avx2(const char *s1, const char *s2)
 
 ![Третий замер](callgrind/callgrind_3.png)
 
+Теперь самая долгая функция int search_word_table (HashTable *table, const char *word), оптимизируем ее интринсиками .
 ```c
 
 int search_word_table (HashTable *table, const char *word)
@@ -253,6 +254,7 @@ int search_word_table(HashTable *table, const char *word)
 |---------------|-----------------------------|----------------------------------|-----------|
 | `search_word_table()` | ~30.4 млрд             | ~15.9 млрд                      | **1.91x** |
 
+Статистику по Self не будет, так так в Self добавилась функция strcmp_avx2. Анализ будет некорректным
 
 
  ⏱️ Сравнение по времени (clock_gettime)
@@ -261,7 +263,9 @@ int search_word_table(HashTable *table, const char *word)
 |---------|----------------|--------------------|-----------|
 | **Среднее время** | 0.73 ± 0.01 сек | 0.70 ± 0.01 сек | **1.03x** |
 
+Мы достигли желаемых 3х процентов 
 
+### Четвертая оптимизация
 
-
+![Третий замер](callgrind/callgrind_4.png)
 

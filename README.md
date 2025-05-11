@@ -267,5 +267,64 @@ int search_word_table(HashTable *table, const char *word)
 
 ### Четвертая оптимизация
 
-![Третий замер](callgrind/callgrind_4.png)
+![Четвертый замер](callgrind/callgrind_4.png)
+```c
+int search_word_table(HashTable *table, const char *word)
+{
+    // Проверка входных параметров
+    assert(table && word);
 
+    // Вычисление хеш-индекса
+    uint32_t index = hash_intrinsic(word) % table->size;
+    HashEntry *entry = table->buckets[index];
+    
+    // Загрузка целевого слова в AVX регистр (1 раз перед циклом)
+    const __m256i target = _mm256_loadu_si256((const __m256i*)word);
+
+    while (entry)
+    {
+        uint32_t mask;  // Для хранения битовой маски сравнения
+        uint8_t found;  // Флаг совпадения (0/1)
+
+        /*
+         * Ассемблерный блок с ручной оптимизацией:
+         * 1. vmovdqu - загрузка текущего слова
+         * 2. vpcmpeqb - векторное сравнение
+         * 3. vpmovmskb - получение битовой маски
+         * 4. Сравнение маски с 0xFFFFFFFF через регистр ECX
+         * 5. sete - установка флага found
+         */
+        __asm__ __volatile__(
+            "vmovdqu ymm0, [%[current]]\n\t"  // 1. Загрузка 32 байт из памяти
+            "vpcmpeqb ymm0, ymm0, %[target]\n\t" // 2. Побайтовое сравнение
+            "vpmovmskb %k[mask], ymm0\n\t"    // 3. Конвертация в битовую маску
+            "xor %%ecx, %%ecx\n\t"            // 4.1 Обнуление ECX
+            "not %%ecx\n\t"                   // 4.2 ECX = 0xFFFFFFFF
+            "cmp %k[mask], %%ecx\n\t"         // 4.3 Сравнение маски
+            "sete %[found]\n\t"               // 5. Установка флага
+            : [mask] "=&r" (mask),
+              [found] "=r" (found)
+            : [current] "r" (entry->word),
+              [target] "x" (target)
+            : "ymm0", "ecx", "cc"  // Список разрушаемых регистров
+        );
+
+        if (found) {
+            return entry->count;
+        }
+
+        entry = entry->next;
+    }
+
+    return HASH_NOT_FOUND_WORD;
+}
+```
+#### Причины возможного замедления
+
+ 1. Избыточные операции в ассемблерном блоке
+- Использование последовательности `xor` + `not` для получения значения `0xFFFFFFFF` вместо прямого сравнения с константой
+- Добавляет лишние инструкции, которые замедляют выполнение
+
+ 2. Неоптимальное использование регистров
+- Вручную написанный ассемблер требует явного управления регистрами
+- Компилятор может лучше оптимизировать распределение регистров при использовании интринсиков

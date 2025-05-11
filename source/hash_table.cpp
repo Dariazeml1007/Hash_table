@@ -9,7 +9,7 @@
 #include <nmmintrin.h>
 #include <stdint.h>
 #include <immintrin.h>
-
+#include <cstdint>
 
 #include "hash_table.h"
 #include "read_to_buffer.h"
@@ -17,6 +17,7 @@
 const int  TABLE_SIZE = 5147;
 
 const int WORD_SIZE = 32;
+
 
 uint32_t hash_intrinsic(const char* word) ;
 int strcmp_avx2(const char *s1, const char *s2);
@@ -46,20 +47,16 @@ uint32_t hash_intrinsic(const char* word)
     hash = _mm_crc32_u64(hash, *((const uint64_t*)(word + 24)));
     return (uint32_t)hash;
 }
+//__attribute__((noinline))
 //unsigned long hash(const char *key)
 //{
 //    assert(key);
-//
 //    unsigned long hash = 5381;
-//
 //    for (size_t i = 0; key[i] != '\0'; i++)
-//
 //         hash = ((hash << 5) + hash) + (size_t) (key[i]); // hash * 33 + c
-//
-//
 //    return hash;
 //}
-
+//
 int add_word(HashTable *table, char *word)
 {
     assert(table);
@@ -70,7 +67,7 @@ int add_word(HashTable *table, char *word)
 
     while (entry)
     {
-        if (strcmp_avx2(entry->word , word) == 0) //strcmp_avx2
+        if (strcmp(entry->word , word) == 0) //strcmp_avx2
         {
             entry->count++;
             return HASH_SUCCESS;
@@ -82,7 +79,7 @@ int add_word(HashTable *table, char *word)
     if (!new_entry)
         return HASH_ALLOCATION_MEMORY_ERROR;
 
-    strncpy_avx2(new_entry->word, word);
+    strncpy(new_entry->word, word, 32); //
 
     new_entry->word[sizeof(new_entry->word) - 1] = '\0';
 
@@ -95,8 +92,8 @@ int add_word(HashTable *table, char *word)
     return HASH_SUCCESS;
 }
 
-__attribute__((noinline))
 
+__attribute__((noinline))
 int strcmp_avx2(const char *s1, const char *s2)
 {
     assert(s1);
@@ -111,16 +108,15 @@ int strcmp_avx2(const char *s1, const char *s2)
     uint32_t mask = _mm256_movemask_epi8(_mm256_cmpeq_epi8(vec1, vec2));
     return (mask == 0xFFFFFFFF) ? 0 : 1;
 }
-
-__attribute__((noinline))
-void strncpy_avx2(char *dest, const char *src)
-{
-    const __m256i *src_vec = (const __m256i*)src;
-    __m256i data = _mm256_loadu_si256(src_vec);
-    _mm256_storeu_si256((__m256i*)dest, data);
-
-    dest[WORD_SIZE-1] = '\0';
-}
+//__attribute__((noinline))
+//void strncpy_avx2(char *dest, const char *src)
+//{
+//    const __m256i *src_vec = (const __m256i*)src;
+//    __m256i data = _mm256_loadu_si256(src_vec);
+//    _mm256_storeu_si256((__m256i*)dest, data);
+//
+//    dest[WORD_SIZE-1] = '\0';
+//}
 
 int dtor_table(HashTable *table)
 {
@@ -144,29 +140,95 @@ int dtor_table(HashTable *table)
 }
 
 
-int search_word_table(HashTable* table, const char* word)
+int search_word_table(HashTable *table, const char *word)
 {
-    assert(table && word);
+    assert(table);
+    assert(word);
 
-    uint32_t hash = hash_intrinsic(word);
-    HashEntry* entry = table->buckets[hash % table->size];
-    const __m256i word_vec = _mm256_loadu_si256((const __m256i*)word);
+    unsigned long index = hash_intrinsic(word) % table->size;
+    HashEntry *entry = table->buckets[index];
+
+    // Подготавливаем искомое слово
+    __m256i target = _mm256_loadu_si256((const __m256i *)word);
 
     while (entry)
     {
-        _mm_prefetch(entry->next, _MM_HINT_T0);
+        // Загружаем слово и сравниваем
+        __m256i current = _mm256_loadu_si256((const __m256i *)(entry->word));
+        __m256i cmp = _mm256_cmpeq_epi8(current, target);
+        int mask = _mm256_movemask_epi8(cmp);
 
-        __m256i entry_vec = _mm256_loadu_si256((const __m256i*)entry->word);
-        uint32_t mask = (uint32_t)_mm256_movemask_epi8(_mm256_cmpeq_epi8(word_vec, entry_vec));
-        if (mask == 0xFFFFFFFFU)
+        if (mask == 0xFFFFFFFF)
         {
             return entry->count;
         }
+
         entry = entry->next;
     }
+
     return HASH_NOT_FOUND_WORD;
 }
 
+//int search_word_table(HashTable *table, const char *word)
+//{
+//    assert(table);
+//    assert(word);
+//
+//    unsigned long index = hash_intrinsic(word) % table->size;
+//    HashEntry *entry = table->buckets[index];
+//
+//    __m256i target = _mm256_loadu_si256((__m256i*)word);
+//    int is_match = 0;
+//
+//    while (entry && entry->next)
+//    {
+//        // Загружаем два слова
+//        HashEntry *e1 = entry;
+//        HashEntry *e2 = entry->next;
+//
+//        // Проверяем оба за один asm блок
+//        __asm__ __volatile__(
+//            "vmovdqu ymm0, %[w1] \n\t"
+//            "vmovdqu ymm1, %[w2] \n\t"
+//
+//            "vpcmpeqb ymm0, ymm0, %[target] \n\t"
+//            "vpcmpeqb ymm1, ymm1, %[target] \n\t"
+//
+//            "vpmovmskb eax, ymm0 \n\t"
+//            "vpmovmskb ebx, ymm1 \n\t"
+//
+//            "cmp eax, -1 \n\t"
+//            "je .Lmatch1 \n\t"
+//            "cmp ebx, -1 \n\t"
+//            "jne .Lno_match \n\t"
+//
+//        ".Lmatch1:"
+//            "mov %[res], 1 \n\t"
+//        ".Lno_match:"
+//
+//            : [res] "+r"(is_match)
+//            : [w1] "m"(e1->word), [w2] "m"(e2->word), [target] "x"(target)
+//            : "rax", "rbx", "ymm0", "ymm1", "memory", "cc"
+//        );
+//
+//        if (is_match == 1) return e1->count;
+//        if (is_match == 1) return e2->count; // оба не могут совпасть одновременно
+//
+//        entry = e2->next;
+//    }
+//
+//    // Обычный поиск для остатка
+//    while (entry) {
+//        if (_mm256_movemask_epi8(_mm256_cmpeq_epi8(
+//                _mm256_loadu_si256((__m256i*)entry->word),
+//                target)) == 0xFFFFFFFF) {
+//            return entry->count;
+//        }
+//        entry = entry->next;
+//    }
+//
+//    return HASH_NOT_FOUND_WORD;
+//}
 //int search_word_table (HashTable *table, const char *word)
 //{
 //
@@ -178,7 +240,7 @@ int search_word_table(HashTable* table, const char* word)
 //
 //    while (entry)
 //    {
-//        if (strcmp_avx2(entry->word , word) == 0)
+//        if (strcmp_avx2(entry->word , word) == 0)//_avx2
 //        {
 //
 //            return entry->count;
@@ -193,3 +255,4 @@ int search_word_table(HashTable* table, const char* word)
 //    return HASH_NOT_FOUND_WORD;
 //
 //}
+//

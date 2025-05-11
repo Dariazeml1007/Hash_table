@@ -25,7 +25,7 @@ typedef struct HashEntry
     char word[32];
     int count;
     struct HashEntry *next;
-} HashEntry;
+} __attribute__((aligned(32))) HashEntry;
 
 typedef struct
 {
@@ -33,10 +33,11 @@ typedef struct
     HashEntry **buckets;
 } HashTable;
 
-
+extern "C" int search_word_table_asm(HashTable *table, const char *word);
 HashTable *ctor_table ();
 int dtor_table(HashTable *table);
 int add_word(HashTable *table, char *word);
-int search_word_table (HashTable *table, const char *word);
-void strncpy_avx2(char* dest, const char* src) ;
+int search_word_table(HashTable* table, const char* word)
+    __attribute__((target("avx2")));
+
 #endif

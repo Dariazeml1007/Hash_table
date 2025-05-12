@@ -265,6 +265,9 @@ int search_word_table(HashTable *table, const char *word)
 ### Четвертая оптимизация
 
 ![Четвертый замер](callgrind/callgrind_4.png)
+
+Так как до сих пор функция  search_word_table(HashTable *table, const char *word) самая долгая, перепишем ее с ассмеблерной вставкой
+
 ```c
 int search_word_table(HashTable *table, const char *word)
 {
@@ -341,6 +344,7 @@ int search_word_table(HashTable *table, const char *word)
 - Вручную написанный ассемблер требует явного управления регистрами
 - Компилятор может лучше оптимизировать распределение регистров при использовании интринсиков
 
+В связи с неудачей вернемся к версии с интринсиками.
 
 ### Пятая оптимизация
 

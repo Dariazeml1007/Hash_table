@@ -71,36 +71,31 @@ char * read_from_file (const char *filename)
 
 }
 
-
-int load_book_to_hash(HashTable *table, const char *filename)
+int load_book_to_hash(HashTable* table, const char* filename)
 {
-    assert(table);
-    assert(filename);
+    assert(table && filename);
+    assert((uintptr_t)table % 64 == 0 && "Table must be 64-byte aligned");
 
+    char* buffer = read_from_file(filename);
+    if (!buffer) return HASH_FILE_NOT_OPENED;
 
-    char *buffer  = read_from_file(filename);
-
-
-    char *current = buffer;
-
+    char* current = buffer;
     while (*current)
     {
+        // Создаем выровненное слово
+        alignas(32) char word[32] = {0};
+        memcpy(word, current, 32);
 
-        alignas(32) char word[32]= {0};
-        //strncpy_avx2(word, current);
-        strncpy(word, current, 32);
-        if (word[0] != '\0')
-        {
+        if (word[0] != '\0') {
             if (add_word(table, word) < HASH_SUCCESS)
-
+            {
+                free(buffer);
                 return HASH_LOAD_ERROR;
-
+            }
         }
         current += 32;
-
     }
     free(buffer);
-
     return HASH_SUCCESS;
 }
 
@@ -141,6 +136,7 @@ int *search_words(HashTable *table, const char *file)
         return NULL;
     }
 
+
     const int RUNS = 10;
     double durations[RUNS];
 
@@ -152,7 +148,9 @@ int *search_words(HashTable *table, const char *file)
         {
             for (size_t j = 0; j < word_count; ++j)
             {
+
                 result_massive[j] = search_word_table(table, word_list[j]);
+
             }
         }
 
@@ -161,7 +159,7 @@ int *search_words(HashTable *table, const char *file)
         printf("Запуск %2d: %.6f сек\n", k + 1, durations[k]);
     }
 
-    // Считаем среднее
+
     double sum = 0.0;
     for (int i = 0; i < RUNS; ++i)
     {

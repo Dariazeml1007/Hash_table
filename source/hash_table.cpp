@@ -23,18 +23,6 @@ uint32_t hash_intrinsic(const char* word) ;
 int strcmp_avx2(const char *s1, const char *s2);
 
 //unsigned long hash(const char *key);
-HashTable *ctor_table ()
-{
-    HashTable *table = (HashTable *)calloc(1, sizeof(HashTable));
-    if (!table)
-    {
-        printf ("Memory allocation error");
-        return NULL;
-    }
-    table->buckets = (HashEntry**) calloc(TABLE_SIZE, sizeof(HashEntry*));
-    table->size = TABLE_SIZE;
-    return table;
-}
 
 // First optimization
 __attribute__((noinline))
@@ -57,35 +45,39 @@ uint32_t hash_intrinsic(const char* word)
 //    return hash;
 //}
 //
-int add_word(HashTable *table, char *word)
+int add_word(HashTable* table, char* word)
 {
-    assert(table);
-    assert(word);
+    assert(table && word);
+    static_assert(sizeof(HashEntry) == 44, "Invalid HashEntry size");
 
-    unsigned long index = hash_intrinsic(word) % table->size;
-    HashEntry *entry = table->buckets[index];
+    // 1. Находим нужную корзину
+    unsigned long index = hash_crc32_asm(word) % table->size;
+    HashEntry* entry = table->buckets[index];
 
-    while (entry)
-    {
-        if (strcmp(entry->word , word) == 0) //strcmp_avx2
+    // 2. Проверяем, есть ли слово уже в таблице
+    while (entry != NULL) {
+        if (strncmp(entry->word, word, 32) == 0)
         {
+            // Слово найдено - увеличиваем счетчик
             entry->count++;
             return HASH_SUCCESS;
         }
         entry = entry->next;
     }
 
-    HashEntry *new_entry = (HashEntry*) calloc (1, sizeof(HashEntry));
+    // 3. Слово не найдено - создаем новую запись
+    HashEntry* new_entry = (HashEntry*)calloc(1, sizeof(HashEntry));
     if (!new_entry)
+    {
         return HASH_ALLOCATION_MEMORY_ERROR;
+    }
 
-    strncpy(new_entry->word, word, 32); //
-
-    new_entry->word[sizeof(new_entry->word) - 1] = '\0';
-
-    new_entry->word[32] = '\0';
+    // Копируем слово (безопасно с нуль-терминатором)
+    strncpy(new_entry->word, word, 31);
+    new_entry->word[31] = '\0'; // Гарантируем завершение строки
     new_entry->count = 1;
 
+    // Добавляем в начало цепочки
     new_entry->next = table->buckets[index];
     table->buckets[index] = new_entry;
 
@@ -139,6 +131,30 @@ int dtor_table(HashTable *table)
     return HASH_SUCCESS;
 }
 
+HashTable* ctor_table()
+{
+
+    HashTable* table = (HashTable*)aligned_alloc(64, sizeof(HashTable));
+    if (!table) {
+        printf("Memory allocation error for table\n");
+        return NULL;
+    }
+
+    // 2. Выделяем выровненную память для массива buckets
+    table->buckets = (HashEntry**)aligned_alloc(64, TABLE_SIZE * sizeof(HashEntry*));
+    if (!table->buckets) {
+        printf("Memory allocation error for buckets\n");
+        free(table);
+        return NULL;
+    }
+
+    // 3. Инициализация
+    table->size = TABLE_SIZE;
+    memset(table->buckets, 0,  TABLE_SIZE * sizeof(HashEntry*));
+
+    return table;
+}
+
 
 int search_word_table(HashTable *table, const char *word)
 {
@@ -171,65 +187,54 @@ int search_word_table(HashTable *table, const char *word)
 
 //int search_word_table(HashTable *table, const char *word)
 //{
-//    assert(table);
-//    assert(word);
+//    // Проверка входных параметров
+//    assert(table && word);
 //
-//    unsigned long index = hash_intrinsic(word) % table->size;
+//    // Вычисление хеш-индекса
+//    uint32_t index = hash_intrinsic(word) % table->size;
 //    HashEntry *entry = table->buckets[index];
 //
-//    __m256i target = _mm256_loadu_si256((__m256i*)word);
-//    int is_match = 0;
+//    // Загрузка целевого слова в AVX регистр (1 раз перед циклом)
+//    const __m256i target = _mm256_loadu_si256((const __m256i*)word);
 //
-//    while (entry && entry->next)
+//    while (entry)
 //    {
-//        // Загружаем два слова
-//        HashEntry *e1 = entry;
-//        HashEntry *e2 = entry->next;
+//        uint32_t mask;  // Для хранения битовой маски сравнения
+//        uint8_t found;  // Флаг совпадения (0/1)
 //
-//        // Проверяем оба за один asm блок
+//        /*
+//         * Ассемблерный блок с ручной оптимизацией:
+//         * 1. vmovdqu - загрузка текущего слова
+//         * 2. vpcmpeqb - векторное сравнение
+//         * 3. vpmovmskb - получение битовой маски
+//         * 4. Сравнение маски с 0xFFFFFFFF через регистр ECX
+//         * 5. sete - установка флага found
+//         */
 //        __asm__ __volatile__(
-//            "vmovdqu ymm0, %[w1] \n\t"
-//            "vmovdqu ymm1, %[w2] \n\t"
-//
-//            "vpcmpeqb ymm0, ymm0, %[target] \n\t"
-//            "vpcmpeqb ymm1, ymm1, %[target] \n\t"
-//
-//            "vpmovmskb eax, ymm0 \n\t"
-//            "vpmovmskb ebx, ymm1 \n\t"
-//
-//            "cmp eax, -1 \n\t"
-//            "je .Lmatch1 \n\t"
-//            "cmp ebx, -1 \n\t"
-//            "jne .Lno_match \n\t"
-//
-//        ".Lmatch1:"
-//            "mov %[res], 1 \n\t"
-//        ".Lno_match:"
-//
-//            : [res] "+r"(is_match)
-//            : [w1] "m"(e1->word), [w2] "m"(e2->word), [target] "x"(target)
-//            : "rax", "rbx", "ymm0", "ymm1", "memory", "cc"
+//            "vmovdqu ymm0, [%[current]]\n\t"  // 1. Загрузка 32 байт из памяти
+//            "vpcmpeqb ymm0, ymm0, %[target]\n\t" // 2. Побайтовое сравнение
+//            "vpmovmskb %k[mask], ymm0\n\t"    // 3. Конвертация в битовую маску
+//            "xor %%ecx, %%ecx\n\t"            // 4.1 Обнуление ECX
+//            "not %%ecx\n\t"                   // 4.2 ECX = 0xFFFFFFFF
+//            "cmp %k[mask], %%ecx\n\t"         // 4.3 Сравнение маски
+//            "sete %[found]\n\t"               // 5. Установка флага
+//            : [mask] "=&r" (mask),
+//              [found] "=r" (found)
+//            : [current] "r" (entry->word),
+//              [target] "x" (target)
+//            : "ymm0", "ecx", "cc"  // Список разрушаемых регистров
 //        );
 //
-//        if (is_match == 1) return e1->count;
-//        if (is_match == 1) return e2->count; // оба не могут совпасть одновременно
-//
-//        entry = e2->next;
-//    }
-//
-//    // Обычный поиск для остатка
-//    while (entry) {
-//        if (_mm256_movemask_epi8(_mm256_cmpeq_epi8(
-//                _mm256_loadu_si256((__m256i*)entry->word),
-//                target)) == 0xFFFFFFFF) {
+//        if (found) {
 //            return entry->count;
 //        }
+//
 //        entry = entry->next;
 //    }
 //
 //    return HASH_NOT_FOUND_WORD;
 //}
-//int search_word_table (HashTable *table, const char *word)
+////int search_word_table (HashTable *table, const char *word)
 //{
 //
 //    assert(table);

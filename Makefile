@@ -1,28 +1,32 @@
-CFLAGS= -O3 -mavx2  -masm=intel -DUSE_CALLGRIND -Wshadow -Winit-self -Wredundant-decls -Wcast-align -Wundef -Wfloat-equal -Winline -Wunreachable-code -Wmissing-declarations -Wmissing-include-dirs -Wswitch-enum -Wswitch-default -Weffc++ -Wmain -Wextra -Wall -g -pipe -fexceptions -Wcast-qual -Wconversion -Wctor-dtor-privacy -Wempty-body -Wformat-security -Wformat=2 -Wignored-qualifiers -Wlogical-op -Wno-missing-field-initializers -Wnon-virtual-dtor -Woverloaded-virtual -Wpointer-arith -Wsign-promo -Wstack-usage=8192 -Wstrict-aliasing -Wstrict-null-sentinel -Wtype-limits -Wwrite-strings -Werror=vla -D_DEBUG -D_EJUDGE_CLIENT_SIDE
-#
-COMP=g++
+CXX = g++
+ASM = nasm
 
-INCLUDE=include
-EXECUTABLE=main
+# Оптимизированные флаги компиляции
+CXXFLAGS = -O3 -mavx2 -maes -msse4.2 -Iinclude -fPIC \
+           -Wall -Wextra -std=c++17 -flto \
+           -Wno-unused-parameter -Wno-missing-field-initializers
 
-SOURCES=$(wildcard source/*.cpp  )
-OBJECTS=$(wildcard *.o)
+ASMFLAGS = -f elf64 -O3
+LDFLAGS = -no-pie -lc -lstdc++ -flto
 
-all:
-	$(COMP) $(CFLAGS) $(SOURCES) -I $(INCLUDE) -o $(EXECUTABLE)
+SRC_CPP = source/main.cpp source/hash_table.cpp source/read_to_buffer.cpp
+OBJ_CPP = $(SRC_CPP:.cpp=.o)
+OBJ_ASM = asm/search_asm.o
 
-obj:
-	$(COMP) $(CFLAGS) -c $(SOURCES) -I $(INCLUDE)
+TARGET = main
 
-link:
-	$(COMP) $(CFLAGS) $(OBJECTS) -o $(EXECUTABLE)
-	clean_obj
+all: $(TARGET)
+
+$(TARGET): $(OBJ_CPP) $(OBJ_ASM)
+	$(CXX) $(LDFLAGS) -o $@ $^
+
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+asm/%.o: asm/%.asm
+	$(ASM) $(ASMFLAGS) $< -o $@
 
 clean:
-	del *.exe
+	rm -f $(OBJ_CPP) $(OBJ_ASM) $(TARGET)
 
-clean_obj:
-	del *.o
-
-.PHONY:
-	clean clean_obj all link
+.PHONY: all clean

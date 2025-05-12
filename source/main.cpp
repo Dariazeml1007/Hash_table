@@ -28,6 +28,7 @@ int main()
     //for (int i = 0; i < 8; i++)
     //    printf ("%d \n", result[i]);
     //printf ("here\n");
+
     if (dtor_table(table) != HASH_SUCCESS)
 
         assert(0 && "DTOR TABLE ERROR");

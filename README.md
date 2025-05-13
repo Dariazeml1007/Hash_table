@@ -85,7 +85,7 @@
 Выбрав сортировку по Self, увидим, что больше всего тактов идет на функцию hash(), ее и будем оптимизировать.
 ### Первая оптимизация
 
-[hash_table.cpp](source/hash_table.cpp).
+[hash_table.cpp](source/hash_table.cpp#L29).
 ```c
 unsigned long hash(const char *key)
 {

@@ -85,7 +85,7 @@
 Выбрав сортировку по Self, увидим, что больше всего тактов идет на функцию hash(), ее и будем оптимизировать.
 ### Первая оптимизация
 
-[hash_table.cpp](source/hash_table.cpp#L29).
+
 ```c
 unsigned long hash(const char *key)
 {
@@ -103,7 +103,7 @@ unsigned long hash(const char *key)
 ```
 
 Для ускорения хэш-функции будем использовать  _mm_crc32_u64
-
+[Hash function optimization ](source/hash_table.cpp#L29).
 ```c
 uint32_t hash_intrinsic(const char* word)
 {
@@ -140,7 +140,7 @@ uint32_t hash_intrinsic(const char* word)
 
 Заменим библиотечную функцию strcmp на strcmp_avx2, используя интринсики. Для этого в  prepare_words.cpp отсортируем слова по 32 байта, чтобы применить ymm регистры
 
-[hash_table.cpp](source/hash_table.cpp).
+[Strcmp_avx2 realisation]([Hash function](source/hash_table.cpp#L89))
 ```c
 __attribute__((noinline))
 
@@ -184,7 +184,7 @@ int strcmp_avx2(const char *s1, const char *s2)
 
 Теперь самая долгая функция int search_word_table (HashTable *table, const char *word), оптимизируем ее интринсиками .
 
-[hash_table.cpp](source/hash_table.cpp).
+
 Функция до оптимизации:
 ```c
 
@@ -217,6 +217,8 @@ int search_word_table (HashTable *table, const char *word)
 ```
 
 Функция после оптимизации :
+[Search_word_table function optimization]([Hash function](source/hash_table.cpp#L159))
+
 ```c
 int search_word_table(HashTable *table, const char *word)
 {

@@ -85,6 +85,7 @@
 Выбрав сортировку по Self, увидим, что больше всего тактов идет на функцию hash(), ее и будем оптимизировать.
 ### Первая оптимизация
 
+[hash_table.cpp](source/hash_table.cpp).
 ```c
 unsigned long hash(const char *key)
 {
@@ -138,6 +139,8 @@ uint32_t hash_intrinsic(const char* word)
 Теперь самая долгая strcmp, оптимизируем ее
 
 Заменим библиотечную функцию strcmp на strcmp_avx2, используя интринсики. Для этого в  prepare_words.cpp отсортируем слова по 32 байта, чтобы применить ymm регистры
+
+[hash_table.cpp](source/hash_table.cpp).
 ```c
 __attribute__((noinline))
 
@@ -181,6 +184,7 @@ int strcmp_avx2(const char *s1, const char *s2)
 
 Теперь самая долгая функция int search_word_table (HashTable *table, const char *word), оптимизируем ее интринсиками .
 
+[hash_table.cpp](source/hash_table.cpp).
 Функция до оптимизации:
 ```c
 
@@ -269,6 +273,7 @@ int search_word_table(HashTable *table, const char *word)
 
 Так как до сих пор функция  search_word_table(HashTable *table, const char *word) самая долгая, перепишем ее с ассмеблерной вставкой
 
+[hash_table.cpp](source/hash_table.cpp).
 ```c
 int search_word_table(HashTable *table, const char *word)
 {
@@ -353,6 +358,7 @@ int search_word_table(HashTable *table, const char *word)
 
 Нам бы следовало переписать всю функцию search_word_table() на ассемблере, но для этого понадобилось бы очень много ассемблерных инструкций , которые бы уменьшили коэффициент улучшения значительно, в рамках учебных целей напишем функцию hash() на ассемблере в отдельном файле.
 
+[search_asm.asm](asm/search_asm.asm).
 ```asm
 hash_crc32_asm:
     xor     eax, eax

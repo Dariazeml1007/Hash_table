@@ -218,7 +218,7 @@ int search_word_table (HashTable *table, const char *word)
 
 Функция после оптимизации :
 [Search_word_table function optimization]([Hash function](source/hash_table.cpp#L159))
-
+[Strcmp_avx2 realisation]([Hash function](source/hash_table.cpp#L89))
 ```c
 int search_word_table(HashTable *table, const char *word)
 {

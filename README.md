@@ -140,7 +140,7 @@ uint32_t hash_intrinsic(const char* word)
 
 Заменим библиотечную функцию strcmp на strcmp_avx2, используя интринсики. Для этого в  prepare_words.cpp отсортируем слова по 32 байта, чтобы применить ymm регистры
 
-[Strcmp_avx2 realisation](source/hash_table.cpp#L89)
+[Implementation of Strcmp_avx2 function](source/hash_table.cpp#L89)
 ```c
 __attribute__((noinline))
 
@@ -275,7 +275,7 @@ int search_word_table(HashTable *table, const char *word)
 
 Так как до сих пор функция  search_word_table(HashTable *table, const char *word) самая долгая, перепишем ее с ассмеблерной вставкой
 
-[Search_word_table function optimization ](source/hash_table.cpp#L188).
+[Search_word_table function optimization](source/hash_table.cpp#L188).
 ```c
 int search_word_table(HashTable *table, const char *word)
 {
@@ -360,7 +360,7 @@ int search_word_table(HashTable *table, const char *word)
 
 Нам бы следовало переписать всю функцию search_word_table() на ассемблере, но для этого понадобилось бы очень много ассемблерных инструкций , которые бы уменьшили коэффициент улучшения значительно, в рамках учебных целей напишем функцию hash() на ассемблере в отдельном файле.
 
-[search_asm.asm](asm/search_asm.asm).
+[Assembly implementation of hash function](asm/search_asm.asm).
 ```asm
 hash_crc32_asm:
     xor     eax, eax

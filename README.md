@@ -275,7 +275,7 @@ int search_word_table(HashTable *table, const char *word)
 
 Так как до сих пор функция  search_word_table(HashTable *table, const char *word) самая долгая, перепишем ее с ассмеблерной вставкой
 
-[hash_table.cpp](source/hash_table.cpp).
+[hash_table.cpp](source/hash_table.cpp#L188).
 ```c
 int search_word_table(HashTable *table, const char *word)
 {

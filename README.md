@@ -15,7 +15,16 @@
 - Оптимизировать до тех пор, пока прирост производительности >= 3-5 %
 - Рассчитать коэффициент улучшения по формуле:  
 
-![Коэффициент улучшения](https://quicklatex.com/cache3/d5/ql_0d893fb05cd9293db0a3b0af999968d5_l3.png)
+<div style="text-align:center; font-family: sans-serif;">
+  <div style="display:inline-block; text-align:center;">
+    <div style="font-size:16px;">Коэффициент ускорения</div>
+    <div style="border-bottom:1px solid black; width:250px; margin:4px 0;"></div>
+    <div style="font-size:16px;">Количество инструкций</div>
+  </div>
+  <div style="display:inline-block; vertical-align:super; margin-left:8px;">
+    × 1000
+  </div>
+</div>
 
 ## 🗃️ Хеш-таблица — структура данных 
 ###  🔍 Что это?

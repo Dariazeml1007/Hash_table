@@ -140,7 +140,7 @@ uint32_t hash_intrinsic(const char* word)
 
 Заменим библиотечную функцию strcmp на strcmp_avx2, используя интринсики. Для этого в  prepare_words.cpp отсортируем слова по 32 байта, чтобы применить ymm регистры
 
-[Strcmp_avx2 realisation]([Hash function](source/hash_table.cpp#L89))
+[Strcmp_avx2 realisation](source/hash_table.cpp#L89)
 ```c
 __attribute__((noinline))
 
@@ -217,8 +217,8 @@ int search_word_table (HashTable *table, const char *word)
 ```
 
 Функция после оптимизации :
-[Search_word_table function optimization]([Hash function](source/hash_table.cpp#L159))
-[Strcmp_avx2 realisation]([Hash function](source/hash_table.cpp#L89))
+[Search_word_table function optimization](source/hash_table.cpp#L159)
+
 ```c
 int search_word_table(HashTable *table, const char *word)
 {
